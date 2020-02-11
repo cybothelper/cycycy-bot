@@ -111,10 +111,20 @@ const handleMessage = (bot, message, cmd, prefix, weirdChamp, NaM, OMGScoots) =>
     }
   });
 
-  // get rid of weebs NaM
-  db.AntiWeeb.findOne({ serverID: message.guild.id }).then((res) => {
+  db.Server.findOne({ serverID: message.guild.id }).then((res) => {
     if (res) {
-      if (res.isEnabled) {
+      res.banPhrases.forEach((bp) => {
+        if (cmd === '$addbanphrase' || cmd === '$delbanphrase') return;
+        if (message.content.toLowerCase().includes(bp.toLowerCase())) {
+          return message.delete()
+            .then(
+              message
+                .reply(`Your message matched the ban phrase in this server ${weirdChamp}`),
+            ).catch(console.log);
+        }
+      });
+
+      if (res.isAntiWeebEnabled) {
         if (message.content.toUpperCase().includes('AYAYA')) {
           if (message.channel.id === '500399188627161109' || message.channel.id === '579333258999889981' || message.content.includes('cycycyAYAYA')) return; // weeb dungeon
           const DansGame = bot.emojis.find(emoji => emoji.name === 'DansGame');
@@ -128,7 +138,7 @@ const handleMessage = (bot, message, cmd, prefix, weirdChamp, NaM, OMGScoots) =>
         }
       }
     }
-  });
+  }).catch(console.log);
 
   // type
   if (message.isMentioned(bot.user)) {

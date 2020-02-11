@@ -1,33 +1,38 @@
-const BanPhrase = require('../../models/banPhraseDB');
-const Mods = require('../../models/modDBtest');
+const { Server } = require('../../settings/databaseImport');
 
 module.exports.run = async (bot, message, args, NaM) => {
   if (args[0] === 'help') {
-    message.channel.send('```Usage: $delbanphrase <word>```');
+    message.channel.send('```Usage: $addbanphrase <word>```');
     return;
   }
 
-  Mods.findOne({ serverID: message.guild.id }).then((res) => {
+  Server.findOne({ serverID: message.guild.id }).then((res) => {
     if (res) {
-      const serverRole = message.guild.roles.get(res.modName);
-      if ((res.modName === serverRole.id && message.member.roles.has(serverRole.id)) || message.member.hasPermission('ADMINISTRATOR')) {
+      const serverRole = message.guild.roles.get(res.modID);
+      if (!serverRole) return message.channel.send(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+      if ((serverRole && res.modID === serverRole.id && message.member.roles.has(serverRole.id)) || message.member.hasPermission('ADMINISTRATOR')) {
         const bp = args.join(' ');
-        if (!bp) return message.reply(`Please add a word to be unbanned ${NaM}`);
+        if (!bp) return message.reply(`Please add a word to be banned ${NaM}`);
 
-        BanPhrase.deleteOne({ serverID: message.guild.id, banphrase: bp }).then((bpRes) => {
-          if (bpRes.n >= 1) {
-            message.reply(`The ban phrase "${bp}" has been deleted ${NaM}`);
-          } else {
-            message.reply(`Ban phrase doesn't exist ${NaM}`);
-          }
-        });
-      } else {
-        return message.reply(`You don't have permission for this command ${NaM}`);
+        if (res.banPhrases.includes(bp.toLowerCase())) {
+          return Server.updateOne(
+            { serverID: message.guild.id },
+            {
+              $pull:
+              { banPhrases: bp.toLowerCase() },
+            },
+          )
+            .then(() => {
+              message.channel.send(`Banphrase has been deleted ${NaM}`);
+            })
+            .catch(console.log);
+        }
+        return message.channel.send(`No Banphrase found ${NaM}`);
       }
-    } else {
-      return message.reply(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+      return message.reply(`You don't have permission for this command ${NaM}`);
     }
-  }).catch(err => message.reply(`Error ${err}`));
+    return message.reply(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+  }).catch(console.log);
 };
 
 module.exports.help = {

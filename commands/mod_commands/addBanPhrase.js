@@ -1,6 +1,4 @@
-const mongoose = require('mongoose');
-const BanPhrase = require('../../models/banPhraseDB');
-const Mods = require('../../models/modDBtest');
+const { Server } = require('../../settings/databaseImport');
 
 module.exports.run = async (bot, message, args, NaM) => {
   if (args[0] === 'help') {
@@ -8,33 +6,33 @@ module.exports.run = async (bot, message, args, NaM) => {
     return;
   }
 
-  Mods.findOne({ serverID: message.guild.id }).then((res) => {
+  Server.findOne({ serverID: message.guild.id }).then((res) => {
     if (res) {
-      const serverRole = message.guild.roles.get(res.modName);
-      if ((res.modName === serverRole.id && message.member.roles.has(serverRole.id)) || message.member.hasPermission('ADMINISTRATOR')) {
+      const serverRole = message.guild.roles.get(res.modID);
+      if (!serverRole) return message.channel.send(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+      if ((serverRole && res.modID === serverRole.id && message.member.roles.has(serverRole.id)) || message.member.hasPermission('ADMINISTRATOR')) {
         const bp = args.join(' ');
         if (!bp) return message.reply(`Please add a word to be banned ${NaM}`);
 
-        const banphrase = new BanPhrase({
-          _id: mongoose.Types.ObjectId(),
-          serverID: message.guild.id,
-          serverName: message.guild.name,
-          banphrase: bp,
-        });
-
-        BanPhrase.find({ serverID: message.guild.id, banphrase: bp }).then((serverRes) => {
-          if (serverRes.length >= 1) {
-            return message.channel.send('Banphrase already exists');
-          }
-          return banphrase.save().then(message.channel.send('Banphrase added')).catch(err => message.reply(`Error ${err}`));
-        });
-      } else {
-        return message.reply(`You don't have permission for this command ${NaM}`);
+        if (res.banPhrases.includes(bp.toLowerCase())) {
+          return message.reply('Banphrase already exists');
+        }
+        return Server.updateOne(
+          { serverID: message.guild.id },
+          {
+            $push:
+            { banPhrases: bp.toLowerCase() },
+          },
+        )
+          .then(() => {
+            message.channel.send(`Banphrase has been added ${NaM}`);
+          })
+          .catch(console.log);
       }
-    } else {
-      return message.reply(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+      return message.reply(`You don't have permission for this command ${NaM}`);
     }
-  }).catch(err => message.reply(`Error ${err}`));
+    return message.reply(`You haven't set a mod in this server ${NaM}. To set a mod in this server do $setmod help.`);
+  }).catch(console.log);
 };
 
 module.exports.help = {
