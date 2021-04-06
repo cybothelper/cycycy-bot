@@ -14,6 +14,7 @@ class Tuck extends Command {
     const nam = this.bot.emojis.cache.find(emoji => emoji.name === 'NaM');
     const weirdChamp = this.bot.emojis.cache.find(emoji => emoji.name === 'WeirdChamp');
     const { Afk } = cb.db;
+    const { TuckDB } = cb.db;  
 
     const tucked = message.guild.member(message.mentions.users.first() || message.guild.members.cache.get(args[0]));
     if (!tucked) return this.respond(`User not found ${nam}`);
@@ -23,11 +24,13 @@ class Tuck extends Command {
       if (res.length >= 1) {
         if (res[0].isTucked) {
           return this.reply(`Tucking the tucked ${weirdChamp}`);
-        }
-        if (res[0].afkType === 'afk') {
+        } else if (res[0].afkType === 'afk') {
           return this.reply(`${tucked.displayName} is AFK, not sleeping... ${weirdChamp}`);
-        }
-        if (!res[0].isTucked) {
+        } else if (!res[0].isTucked) {
+	 const timeString = new Date();
+	 var tuckItem = { timeStamp: timeString.Now(), tuckedUserID: tucked.ID };
+	 TuckDB.update({ userID: message.author.id },
+			  { $push: { tucks: tuckItem } });
           return Afk.updateOne({ userID: tucked.id }, { isTucked: true, tucker: message.author.username })
             .then(() => {
               this.respond(`<@${message.author.id}> tucked ${tucked.displayName} to bed ${args[1] ? args[1] : nam} 👉 🛏️`);
